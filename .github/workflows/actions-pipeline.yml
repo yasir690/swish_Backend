@@ -1,0 +1,78 @@
+name: Swish Backend Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js 20.14.0
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20.14.0
+
+    - name: Installing dependencies
+      run: npm install
+
+    - name: Set up environment variables
+      env:
+        SECRET_KEY: ${{ secrets.SECRET_KEY }}
+        SERVER_KEY: ${{ secrets.SERVER_KEY }}  
+        DB_COLLECTION: ${{ secrets.DB_COLLECTION }}
+        API_PRIFEX: ${{ vars.API_PRIFEX }}
+        DB_NAME: ${{ vars.DB_NAME }}
+        MAIL_ENCRYPTION: ${{ vars.MAIL_ENCRYPTION }}
+        MAIL_FROM_NAME: ${{ vars.MAIL_FROM_NAME }}
+        MAIL_HOST: ${{ vars.MAIL_HOST }}
+        MAIL_PORT: ${{ vars.MAIL_PORT }}
+        MAIL_SERVICE: ${{ vars.MAIL_SERVICE }}
+        MAIL_USERNAME: ${{ vars.MAIL_USERNAME }}
+        MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+        PORT: ${{ vars.PORT }}
+        
+      run: |
+        echo "SECRET_KEY=$SECRET_KEY" >> $GITHUB_ENV
+        echo "SERVER_KEY=$SERVER_KEY" >> $GITHUB_ENV
+        echo "DB_COLLECTION=$DB_COLLECTION" >> $GITHUB_ENV
+        echo "API_PRIFEX=$API_PRIFEX" >> $GITHUB_ENV
+        echo "DB_NAME=$DB_NAME" >> $GITHUB_ENV
+        echo "MAIL_ENCRYPTION=$MAIL_ENCRYPTION" >> $GITHUB_ENV
+        echo "MAIL_FROM_NAME=$MAIL_FROM_NAME" >> $GITHUB_ENV
+        echo "MAIL_HOST=$MAIL_HOST" >> $GITHUB_ENV
+        echo "MAIL_PORT=$MAIL_PORT" >> $GITHUB_ENV
+        echo "MAIL_SERVICE=$MAIL_SERVICE" >> $GITHUB_ENV
+        echo "MAIL_USERNAME=$MAIL_USERNAME" >> $GITHUB_ENV
+        echo "MAIL_PASSWORD=$MAIL_PASSWORD" >> $GITHUB_ENV
+        echo "PORT=$PORT" >> $GITHUB_ENV
+
+    - name: Stop previous PM2 instance (if running)
+      run: |
+        echo ${{ vars.DB_COLLECTION }}
+
+    - name: Stop previous PM2 instance (if running)
+      run: |
+        npx pm2 stop swish-backend || true
+        npx pm2 delete swish-backend || true
+      continue-on-error: true
+
+    - name: Starting Application with PM2
+      id: start_pm2
+      run: |
+        npx pm2 start index.js --name "swish-backend" -f
+      continue-on-error: true
+
+    - name: Print IP if application started successfully
+      if: ${{ steps.start_pm2.outcome == 'success' }}
+      run: |
+        RUNNER_IP=$(curl -s http://checkip.amazonaws.com)
+        echo "App is running on IP address: $RUNNER_IP:4000"
+   
+    # - name: Show PM2 logs
+    #   run: |
+    #     npx pm2 logs swish-backend --lines 100
+    
